@@ -27,6 +27,8 @@ private:
 	cocos2d::CCCamera* m_ccCamera;
 	float m_zoomFactor;
 	cocos2d::CCPoint ccTouchBeganPos;
+	// CCPoint m_lastTouchPosition;
+   // bool m_isDragging;
 };
 
 #endif // __HELLOWORLD_SCENE_H__
