@@ -1,6 +1,6 @@
 #include "HelloWorldScene.h"
-#include "kazmath\kazmath.h"
-#include "kazmath\GL\matrix.h"
+#include "kazmath/kazmath.h"
+#include "kazmath/GL/matrix.h"
 
 USING_NS_CC;
 
@@ -14,7 +14,7 @@ CCScene* HelloWorld::scene()
 
 HelloWorld::~HelloWorld()
 {
-	CC_SAFE_DELETE(m_ccCamera);
+	CC_SAFE_RELEASE(m_ccCamera);
 }
 
 bool HelloWorld::init()
@@ -37,20 +37,18 @@ bool HelloWorld::init()
 		addChild(bg, -1);
 	}
 
-
-	m_zoomFactor = 1.0f;
+	m_zoomFactor = 1.f;
 	m_ccCamera = new CCCamera();
 	m_ccCamera->init();
 	m_ccCamera->setEyeXYZ(0, 0, 500);
 	m_ccCamera->setCenterXYZ(0, 0, 0);
 	m_ccCamera->retain();
 
-	// Orthographyc projection
+	// Estado inicial del touch
+	m_isDragging = false;
+	m_lastTouchPosition = CCPointZero;
 
-	 updateCameraProjection();
-
-	 // CCDirector::sharedDirector()->setProjection(kCCDirectorProjectionCustom);
-	// CCDirector::sharedDirector()->setCamera(m_ccCamera);
+	updateCameraProjection();
 
 	this->setTouchEnabled(true);
 
@@ -99,13 +97,21 @@ void HelloWorld::updateCameraProjection()
 		-500, 500);  // near, far 
 	kmGLMultMatrix(&orthoMatrix);
 
+	updateCameraView();
+}
+
+void HelloWorld::updateCameraView()
+{
 	kmGLMatrixMode(KM_GL_MODELVIEW);
 	kmGLLoadIdentity();
 
 	if (m_ccCamera) {
-		kmVec3 eye = { 0, 0, 500 };  // camera position
-		kmVec3 center = { 0, 0, 0 }; // Point
-		kmVec3 up = { 0, 1, 0 };     // Vector left
+		float eyeX, eyeY, eyeZ;
+		m_ccCamera->getEyeXYZ(&eyeX, &eyeY, &eyeZ);
+
+		kmVec3 eye = { eyeX, eyeY, eyeZ };
+		kmVec3 center = { eyeX, eyeY, 0 }; 
+		kmVec3 up = { 0, 1, 0 };           
 
 		kmMat4 lookAt;
 		kmMat4LookAt(&lookAt, &eye, &center, &up);
@@ -120,41 +126,51 @@ void HelloWorld::registerWithTouchDispatcher()
 
 bool HelloWorld::ccTouchBegan(CCTouch* touch, CCEvent* event)
 {
-	ccTouchBeganPos = touch->getLocation();
+	m_lastTouchPosition = touch->getLocation();
+	m_isDragging = true;
 	return true;
 }
 
 void HelloWorld::ccTouchMoved(CCTouch* touch, CCEvent* event)
 {
-	if (m_ccCamera) {
-		CCPoint delta = touch->getDelta();
+	if (!m_isDragging || !m_ccCamera) return;
 
-		float eyeX, eyeY, eyeZ;
-		m_ccCamera->getEyeXYZ(&eyeX, &eyeY, &eyeZ);
-		CCPoint currentPos = ccp(eyeX, eyeY);
+	CCPoint currentTouch = touch->getLocation();
+	CCPoint delta = ccpSub(currentTouch, m_lastTouchPosition);
 
-		CCPoint newPos = ccp(currentPos.x - delta.x, currentPos.y - delta.y);
+	delta = ccpMult(delta, -1.f);
 
-		m_ccCamera->setEyeXYZ(newPos.x, newPos.y, 500);
-		m_ccCamera->setCenterXYZ(newPos.x, newPos.y, 0);
-	}
+	float eyeX, eyeY, eyeZ;
+	m_ccCamera->getEyeXYZ(&eyeX, &eyeY, &eyeZ);
+
+	float newX = eyeX + delta.x * m_zoomFactor;
+	float newY = eyeY + delta.y * m_zoomFactor;
+
+	m_ccCamera->setEyeXYZ(newX, newY, eyeZ);
+	m_ccCamera->setCenterXYZ(newX, newY, 0);
+
+	m_lastTouchPosition = currentTouch;
+
+	updateCameraView();
 }
 
 void HelloWorld::ccTouchEnded(CCTouch* touch, CCEvent* event)
 {
+	m_isDragging = false;
+
 	CCPoint screenPos = touch->getLocation();
 	CCPoint worldPos = this->convertToNodeSpace(screenPos);
 
 	CCSprite* spr = CCSprite::create("Plus.png");
-	spr->setPosition(worldPos);
-	spr->setContentSize(CCSizeMake(20, 20));
-
-	spr->runAction(CCSequence::create(
-		CCFadeOut::create(2.f),
-		CCRemoveSelf::create(),
-		NULL));
-
-	addChild(spr, 1);
+	if (spr) {
+		spr->setPosition(worldPos);
+		spr->setContentSize(CCSizeMake(20, 20));
+		spr->runAction(CCSequence::create(
+			CCFadeOut::create(2.f),
+			CCRemoveSelf::create(),
+			NULL));
+		addChild(spr, 1);
+	}
 }
 
 void HelloWorld::zoomInCallback(CCObject* pSender)
@@ -173,6 +189,7 @@ void HelloWorld::resetPositionCallback(CCObject* pSender)
 		m_ccCamera->setEyeXYZ(0, 0, 500);
 		m_ccCamera->setCenterXYZ(0, 0, 0);
 		setCameraZoom(1.f);
+		updateCameraView();
 	}
 }
 
