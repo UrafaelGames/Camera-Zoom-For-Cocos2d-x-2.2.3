@@ -24,20 +24,32 @@ bool HelloWorld::init()
 	CCSize vs = CCDirector::sharedDirector()->getVisibleSize();
 	CCPoint origin = CCDirector::sharedDirector()->getVisibleOrigin();
 
-	CCSprite* sprite = CCSprite::create("HelloWorld.png");
-	sprite->setPosition(ccp(vs.width / 2 + origin.x, vs.height / 2 + origin.y));
-	addChild(sprite, 0);
+	CCDirector::sharedDirector()->setProjection(kCCDirectorProjection2D);
 
-	m_zoomFactor = 1.f;
+	CCSprite* sprite = CCSprite::create("HelloWorld.png");
+	if (sprite) {
+		sprite->setPosition(ccp(vs.width / 2 + origin.x, vs.height / 2 + origin.y));
+		addChild(sprite, 0);
+	}
+	else {
+		CCLOG("Error: HelloWorld.png not load");
+		CCLayerColor* bg = CCLayerColor::create(ccc4(100, 100, 200, 255));
+		addChild(bg, -1);
+	}
+
+
+	m_zoomFactor = 1.0f;
 	m_ccCamera = new CCCamera();
 	m_ccCamera->init();
 	m_ccCamera->setEyeXYZ(0, 0, 500);
 	m_ccCamera->setCenterXYZ(0, 0, 0);
 	m_ccCamera->retain();
 
-	updateCameraProjection();
+	// Orthographyc projection
 
-	CCDirector::sharedDirector()->setProjection(kCCDirectorProjectionCustom);
+	 updateCameraProjection();
+
+	 // CCDirector::sharedDirector()->setProjection(kCCDirectorProjectionCustom);
 	// CCDirector::sharedDirector()->setCamera(m_ccCamera);
 
 	this->setTouchEnabled(true);
@@ -81,11 +93,24 @@ void HelloWorld::updateCameraProjection()
 	kmGLLoadIdentity();
 
 	kmMat4 orthoMatrix;
-	kmMat4OrthographicProjection(&orthoMatrix, -width / 2, width / 2, -height / 2, height / 2, 1, 1000);
+	kmMat4OrthographicProjection(&orthoMatrix,
+		0, width,    // left, right 
+		0, height,   // bottom, top
+		-500, 500);  // near, far 
 	kmGLMultMatrix(&orthoMatrix);
 
 	kmGLMatrixMode(KM_GL_MODELVIEW);
 	kmGLLoadIdentity();
+
+	if (m_ccCamera) {
+		kmVec3 eye = { 0, 0, 500 };  // camera position
+		kmVec3 center = { 0, 0, 0 }; // Point
+		kmVec3 up = { 0, 1, 0 };     // Vector left
+
+		kmMat4 lookAt;
+		kmMat4LookAt(&lookAt, &eye, &center, &up);
+		kmGLMultMatrix(&lookAt);
+	}
 }
 
 void HelloWorld::registerWithTouchDispatcher()
@@ -121,15 +146,15 @@ void HelloWorld::ccTouchEnded(CCTouch* touch, CCEvent* event)
 	CCPoint worldPos = this->convertToNodeSpace(screenPos);
 
 	CCSprite* spr = CCSprite::create("Plus.png");
-		spr->setPosition(worldPos);
-		spr->setContentSize(CCSizeMake(20, 20));
+	spr->setPosition(worldPos);
+	spr->setContentSize(CCSizeMake(20, 20));
 
-		spr->runAction(CCSequence::create(
-			CCFadeOut::create(2.f),
-			CCRemoveSelf::create(),
-			NULL));
+	spr->runAction(CCSequence::create(
+		CCFadeOut::create(2.f),
+		CCRemoveSelf::create(),
+		NULL));
 
-		addChild(spr, 1);
+	addChild(spr, 1);
 }
 
 void HelloWorld::zoomInCallback(CCObject* pSender)
