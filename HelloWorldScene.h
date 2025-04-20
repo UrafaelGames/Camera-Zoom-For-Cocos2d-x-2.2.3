@@ -13,6 +13,7 @@ public:
 
 	virtual void registerWithTouchDispatcher();
 	void updateCameraProjection();
+	void updateCameraView();
 	virtual bool ccTouchBegan(cocos2d::CCTouch* touch, cocos2d::CCEvent* event);
 	virtual void ccTouchMoved(cocos2d::CCTouch* touch, cocos2d::CCEvent* event);
 	virtual void ccTouchEnded(cocos2d::CCTouch* touch, cocos2d::CCEvent* event);
@@ -26,9 +27,8 @@ public:
 private:
 	cocos2d::CCCamera* m_ccCamera;
 	float m_zoomFactor;
-	cocos2d::CCPoint ccTouchBeganPos;
-	// CCPoint m_lastTouchPosition;
-   // bool m_isDragging;
+	cocos2d::CCPoint m_lastTouchPosition;
+	bool m_isDragging;
 };
 
 #endif // __HELLOWORLD_SCENE_H__
